@@ -46,8 +46,13 @@ merged <- closest %>%
   group_by(objectid) %>%
   summarise(count = n()) %>%
   ungroup() %>%
-  right_join(chapel_hill_streets) %>%
-  filter(is.na(count) != TRUE)
+  right_join(chapel_hill_streets)
+
+merged$count[is.na(merged$count)] <- 0
+
+
+
+st_write(merged, dsn = "geojson/street_counts.geojson")
 
 
 merged %>%
