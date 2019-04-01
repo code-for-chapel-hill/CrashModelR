@@ -1,0 +1,61 @@
+---
+title: "Chapel Hill Crash Model R Code"
+author: "Jason A. Jones"
+date: "April 1, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(sf)
+library(RANN)
+```
+
+
+```{r}
+pedestrian_crashes <- read_sf("https://www.chapelhillopendata.org/explore/dataset/pedestrian-crashes-chapel-hill-region/download/?format=geojson&timezone=America/New_York")
+
+bicycle_crashes <- read_sf("https://www.chapelhillopendata.org/explore/dataset/bicycle-crash-data-chapel-hill-region/download/?format=geojson&timezone=America/New_York")
+
+chapel_hill_streets <- read_sf("https://www.chapelhillopendata.org/explore/dataset/streets/download/?format=geojson&timezone=America/New_York")
+```
+
+
+```{r}
+
+street_nodes_sf <- chapel_hill_streets %>%
+  group_by(objectid) %>%
+  st_cast("POINT")
+
+
+street_nodes_df <- data.frame(st_coordinates(street_nodes_sf), street_nodes_sf$objectid) %>%
+  rename(objectid = street_nodes_sf.objectid) %>%
+  mutate(seg = 1:nrow(.))
+
+
+closest <- data.frame(nn2(street_nodes_df[,1:2], st_coordinates(pedestrian_crashes), k = 1))
+
+
+merged <- closest %>%
+  left_join(street_nodes_df, by = c("nn.idx" = "seg")) %>%
+  group_by(objectid) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  right_join(chapel_hill_streets) %>%
+  filter(is.na(count) != TRUE)
+
+
+merged %>%
+  ggplot() +
+  geom_sf(data = chapel_hill_streets, color = "grey") +
+  geom_sf(color = "red") +
+  theme(panel.background = element_blank())
+
+
+```
+
